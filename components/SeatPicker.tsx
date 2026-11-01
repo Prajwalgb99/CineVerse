@@ -81,6 +81,7 @@ export default function SeatPicker() {
       <div style={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 8, flexWrap: "wrap", maxWidth: "60vw" }}>
         {tabs.map(([k, l]) => <button key={k} style={btn(preset === k)} onClick={() => set({ preset: k })}>{l}</button>)}
       </div>
+      <a href="/" style={{ ...btn(), position: "absolute", bottom: 16, left: 130, textDecoration: "none" }}>← Home</a>
       <button style={{ ...btn(house), position: "absolute", bottom: 16, left: 16 }} onClick={() => set({ house: !house })}>House lights</button>
       <div style={{ position: "absolute", top: 16, right: 16, width: 280, padding: 16, borderRadius: 16, background: "#0b0d12ee", border: "1px solid #ffffff18" }}>
         {Object.values(CATS).map((c) => (
