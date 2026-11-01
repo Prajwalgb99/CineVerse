@@ -6,7 +6,9 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { CATS, HALL } from "../lib/hall";
+import { CATS } from "../lib/hall";
+import { useHall } from "../lib/hallStore";
+import { useHover } from "../lib/hover";
 import { useQuality } from "../lib/quality";
 import { useStore } from "../lib/store";
 import { canvasTex, fabricBump } from "../lib/textures";
@@ -22,6 +24,7 @@ const part = (w: number, h: number, d: number, r: number, x: number, y: number, 
 
 export default function Seats() {
   const refs = useRef<(THREE.InstancedMesh | null)[]>([]);
+  const HALL = useHall((s) => s.hall);
   const selected = useStore((s) => s.selected), toggle = useStore((s) => s.toggle), hi = useQuality((s) => s.q === "high");
   const procedural = useMemo<Part[]>(() => [
     { geo: mergeGeometries([part(0.5, 0.14, 0.5, 0.05, 0, 0.32, 0), part(0.5, 0.62, 0.12, 0.05, 0, 0.68, 0.23, 0.18)])!,
@@ -62,14 +65,19 @@ export default function Seats() {
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     });
-  }, [selected, parts]);
+  }, [selected, parts, HALL]);
 
+  const hover = (e: ThreeEvent<PointerEvent>) => { // tooltip + cursor
+    e.stopPropagation(); const s = HALL[e.instanceId!]; if (!s) return;
+    document.body.style.cursor = s.sold ? "not-allowed" : "pointer";
+    useHover.getState().set(s.id, e.nativeEvent.clientX, e.nativeEvent.clientY);
+  };
   const click = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); const s = HALL[e.instanceId!]; if (s && !s.sold) toggle(s.id); };
   return (
     <>
       {parts.map((p, pi) => (
         <instancedMesh key={`${real ? "g" : "p"}${pi}`} ref={(el) => { refs.current[pi] = el; }} args={[p.geo, p.mat, HALL.length]}
-          onClick={click} castShadow={hi && p.tint} receiveShadow />
+          onClick={click} onPointerMove={hover} onPointerOut={() => { document.body.style.cursor = ""; useHover.getState().set(null, 0, 0); }} castShadow={hi && p.tint} receiveShadow />
       ))}
     </>
   );

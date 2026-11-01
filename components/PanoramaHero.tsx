@@ -5,27 +5,33 @@ import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useRouter } from "next/navigation";
 import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { cityById, moviesFor } from "../data/cities";
 import { MOVIES, Movie } from "../data/movies";
+import { useAuth } from "../lib/auth";
+import { useCity } from "../lib/city";
+import CitySelect from "./CitySelect";
 import { useNarrow, useQuality } from "../lib/quality";
 
 
-const N = MOVIES.length, STEP = (Math.PI * 2) / N, R = 9, PW = 2.6, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
+let ring: Movie[] = MOVIES, N = ring.length, STEP = (Math.PI * 2) / N, R = 9;
+const SPACING = 4.7, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
+const setRing = (list: Movie[]) => { ring = list; N = Math.max(list.length, 1); STEP = (Math.PI * 2) / N; R = N > 1 ? SPACING / (2 * Math.sin(Math.min(STEP, Math.PI - 0.01) / 2)) : 9; };
 const GOLD = "#f7b731";
 const FPS = typeof window !== "undefined" && location.search.includes("fps"); // add ?fps to the URL
-type St = { angle: number; vel: number; target: number | null; drag: boolean; last: number; x: number; idx: number; wheel: number; wt: number };
+type St = { angle: number; vel: number; target: number | null; drag: boolean; last: number; x: number; idx: number; wheel: number; wt: number; tap: { i: number; idx: number; t: number; x: number; y: number } | null };
 const EXT = ["jpg", "webp", "png"];
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 function posterTex(m: Movie) {
-  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 768;
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 640;
   const c = cv.getContext("2d")!;
-  const g = c.createLinearGradient(0, 0, 0, 768); g.addColorStop(0, m.color); g.addColorStop(1, "#05060a");
-  c.fillStyle = g; c.fillRect(0, 0, 512, 768);
+  const g = c.createLinearGradient(0, 0, 0, 640); g.addColorStop(0, m.color); g.addColorStop(1, "#05060a");
+  c.fillStyle = g; c.fillRect(0, 0, 512, 640);
   const r = c.createRadialGradient(256, 300, 10, 256, 300, 260); r.addColorStop(0, "#ffffff66"); r.addColorStop(1, "#ffffff00");
-  c.fillStyle = r; c.fillRect(0, 0, 512, 768);
+  c.fillStyle = r; c.fillRect(0, 0, 512, 640);
   c.fillStyle = "#fff"; c.textAlign = "center";
-  c.font = "bold 92px Impact, 'Arial Narrow', sans-serif"; c.fillText(m.title.toUpperCase(), 256, 650, 460);
-  c.font = "28px system-ui"; c.fillStyle = "#ffffffcc"; c.fillText(m.lang, 256, 700, 460);
+  c.font = "bold 92px Impact, 'Arial Narrow', sans-serif"; c.fillText(m.title.toUpperCase(), 256, 540, 460);
+  c.font = "28px system-ui"; c.fillStyle = "#ffffffcc"; c.fillText(m.lang, 256, 590, 460);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
@@ -38,12 +44,13 @@ const fade = () => {
   return (fadeTex = new THREE.CanvasTexture(cv));
 };
 
-function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObject<St>; onPick: (i: number) => void }) {
+function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObject<St>; onPick: (i: number, was: number) => void }) {
   const g = useRef<THREE.Group>(null!), mat = useRef<THREE.MeshBasicMaterial>(null!);
   const refl = useRef<THREE.MeshBasicMaterial>(null!), glow = useRef<THREE.MeshBasicMaterial>(null!);
   const [tex, setTex] = useState<THREE.Texture>(() => posterTex(m));
+  const [asp, setAsp] = useState(0.8); // plane shape follows the image (800x1000 = 0.8)
   useEffect(() => {
-    const tryExt = (n: number) => { if (n >= EXT.length) return; new THREE.TextureLoader().load(`/posters/${m.id}.${EXT[n]}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setTex(t); }, undefined, () => tryExt(n + 1)); };
+    const tryExt = (n: number) => { if (n >= EXT.length) return; new THREE.TextureLoader().load(`/posters/${m.id}.${EXT[n]}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setAsp(Math.max(0.6, Math.min(1.05, t.image.width / t.image.height))); setTex(t); }, undefined, () => tryExt(n + 1)); };
     tryExt(0);
   }, [m.id]);
   useFrame(() => {
@@ -52,17 +59,23 @@ function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObjec
     g.current.position.set(R * Math.sin(th), FLOOR + (PH / 2) * sc, -R * Math.cos(th));
     g.current.rotation.y = -th; // faces inward, towards the viewer
     g.current.scale.setScalar(sc);
-    const b = 1 - 0.65 * Math.min(1, Math.abs(th) / 1.2); // side screens darker by angle
+    const b = 1 - 0.65 * Math.min(1, Math.abs(th) / (STEP * 2.3)); // side screens darker by angle
     mat.current.color.setScalar(b); refl.current.color.setScalar(b); glow.current.opacity = near;
   });
   return (
     <group ref={g}>
-      <mesh position={[0, 0, -0.02]}><planeGeometry args={[PW + 0.18, PH + 0.18]} /><meshBasicMaterial ref={glow} color={GOLD} transparent toneMapped={false} /></mesh>
-      <mesh onClick={(e: ThreeEvent<MouseEvent>) => { if (e.delta > 6) return; e.stopPropagation(); onPick(i); }}>
-        <planeGeometry args={[PW, PH]} /><meshBasicMaterial ref={mat} map={tex} toneMapped={false} />
+      <mesh position={[0, 0, -0.02]}><planeGeometry args={[PH * asp + 0.18, PH + 0.18]} /><meshBasicMaterial ref={glow} color={GOLD} transparent toneMapped={false} /></mesh>
+      <mesh
+        onPointerDown={(e) => { st.current.tap = { i, idx: st.current.idx, t: performance.now(), x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }; }}
+        onClick={(e: ThreeEvent<MouseEvent>) => { // only a quick, still tap opens a movie
+          const t = st.current.tap; st.current.tap = null;
+          if (!t || t.i !== i || performance.now() - t.t > 350 || Math.hypot(e.nativeEvent.clientX - t.x, e.nativeEvent.clientY - t.y) > 8) return;
+          e.stopPropagation(); onPick(i, t.idx);
+        }}>
+        <planeGeometry args={[PH * asp, PH]} /><meshBasicMaterial ref={mat} map={tex} toneMapped={false} />
       </mesh>
       <mesh position={[0, -PH, 0]} scale={[1, -1, 1]}>
-        <planeGeometry args={[PW, PH]} />
+        <planeGeometry args={[PH * asp, PH]} />
         <meshBasicMaterial ref={refl} map={tex} alphaMap={fade()} transparent opacity={0.32} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
       </mesh>
     </group>
@@ -88,7 +101,7 @@ function Physics({ st, setIdx, bar }: { st: MutableRefObject<St>; setIdx: (i: nu
     if (bar.current) bar.current.style.width = (k.drag || k.target !== null ? 0 : Math.min(1, (t - k.last) / AUTO) * 100) + "%";
     const idx = ((Math.round(k.angle / STEP) % N) + N) % N;
     if (idx !== k.idx) { k.idx = idx; setIdx(idx); }
-    tint.current.set(MOVIES[idx].color).multiplyScalar(0.35); // sky follows the front poster
+    tint.current.set(ring[idx]?.color ?? "#05060a").multiplyScalar(0.35); // sky follows the front poster
     bg.current.lerp(tint.current, 0.04); scene.background = bg.current;
   });
   return null;
@@ -98,14 +111,19 @@ const pill: React.CSSProperties = { padding: "8px 14px", borderRadius: 10, borde
 
 export default function PanoramaHero() {
   const router = useRouter();
+  const cityId = useCity((s) => s.city), user = useAuth((s) => s.user), signOut = useAuth((s) => s.signOut);
+  setRing(moviesFor(cityById(cityId))); // the ring shows this city's movies
   const q = useQuality((s) => s.q), setQ = useQuality((s) => s.set), narrow = useNarrow(), hi = q === "high";
-  const st = useRef<St>({ angle: 0, vel: 0, target: null, drag: false, last: 0, x: 0, idx: 0, wheel: 0, wt: 0 });
-  const bar = useRef<HTMLDivElement | null>(null);
+  const st = useRef<St>({ angle: 0, vel: 0, target: null, drag: false, last: 0, x: 0, idx: 0, wheel: 0, wt: 0, tap: null });
+  const bar = useRef<HTMLDivElement | null>(null), root = useRef<HTMLDivElement>(null);
+  const [vis, setVis] = useState(true); // stop drawing the 3D ring while it is scrolled out of view
+  useEffect(() => { const io = new IntersectionObserver(([e]) => setVis(e.isIntersecting)); io.observe(root.current!); return () => io.disconnect(); }, []);
   const [idx, setIdx] = useState(0);
-  const m = MOVIES[idx];
-  const go = (i: number) => router.push(`/movie/${MOVIES[i].id}`);
-  const pick = (i: number) => {
-    if (i === st.current.idx) return go(i);
+  useEffect(() => { Object.assign(st.current, { angle: 0, vel: 0, target: null, idx: 0 }); setIdx(0); }, [cityId]);
+  const m = ring[idx] ?? ring[0];
+  const go = (i: number) => router.push(`/movie/${ring[i].id}`);
+  const pick = (i: number, was: number) => {
+    if (i === was && i === st.current.idx) return go(i);
     st.current.target = st.current.angle + wrap(i * STEP - st.current.angle); // side screen -> front
   };
   const nudge = (d: number) => { const k = st.current; k.vel = 0; k.target = Math.round(k.angle / STEP) * STEP + d * STEP; };
@@ -118,23 +136,24 @@ export default function PanoramaHero() {
       const proj = k.angle + Math.max(-3 * STEP, Math.min(3 * STEP, k.vel * 14));
       k.target = Math.round(proj / STEP) * STEP; k.vel = 0;
     };
-    const key = (e: KeyboardEvent) => { if (e.key === "ArrowRight") nudge(1); else if (e.key === "ArrowLeft") nudge(-1); else if (e.key === "Enter") go(k.idx); };
+    const key = (e: KeyboardEvent) => { if (e.key === "ArrowRight") nudge(1); else if (e.key === "ArrowLeft") nudge(-1); else if (e.key === "Enter" && document.activeElement === document.body) go(k.idx); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("keydown", key);
     return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key); };
   }, []);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#05060a", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
+    <div ref={root} style={{ position: "relative", height: "100svh", background: "#05060a", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
       <div style={{ position: "absolute", inset: 0, touchAction: "none", cursor: "grab" }}
         onWheel={(e) => { // trackpad / mouse wheel: one screen per notch
-          const k = st.current, d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+          if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical wheel scrolls the page
+          const k = st.current, d = e.deltaX;
           k.wheel += d;
           if (Math.abs(k.wheel) > 50 && performance.now() - k.wt > 300) { nudge(k.wheel > 0 ? 1 : -1); k.wheel = 0; k.wt = performance.now(); }
         }}
         onPointerDown={(e) => { const k = st.current; k.drag = true; k.vel = 0; k.target = null; k.x = e.clientX; }}>
-        <Canvas key={q} dpr={hi ? [1, 1.5] : 1} camera={{ position: [0, 1.4, 8], fov: narrow ? 72 : 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -9)}>
+        <Canvas key={q + cityId} frameloop={vis ? "always" : "never"} dpr={hi ? [1, 1.5] : 1} camera={{ position: [0, 1.4, 17 - R], fov: narrow ? 72 : 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -R)}>
           <Stars radius={70} depth={30} count={900} factor={3} fade />
-          {MOVIES.map((mv, i) => <Poster key={mv.id} m={mv} i={i} st={st} onPick={pick} />)}
+          {ring.map((mv, i) => <Poster key={mv.id} m={mv} i={i} st={st} onPick={pick} />)}
           <Physics st={st} setIdx={setIdx} bar={bar} />
           {FPS && <Stats />}
           {hi && <EffectComposer multisampling={0}><Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.9} /><Vignette offset={0.3} darkness={0.7} /></EffectComposer>}
@@ -148,8 +167,10 @@ export default function PanoramaHero() {
           <span style={{ flex: 1 }} />
           {!narrow && <span style={{ ...pill, minWidth: 180, opacity: 0.7 }}>Search movies, theatres…</span>}
           <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/tickets")}>My tickets</span>
-          <span style={{ ...pill, cursor: "pointer" }} onClick={() => setQ(hi ? "low" : "high")}>{hi ? "High" : "Low"} quality</span>{!narrow && <span style={pill}>Chennai ▾</span>}
-          <span style={{ ...pill, background: GOLD, color: "#000", fontWeight: 700, border: 0 }}>Sign in</span>
+          <span style={{ ...pill, cursor: "pointer" }} onClick={() => setQ(hi ? "low" : "high")}>{hi ? "High" : "Low"} quality</span><CitySelect />
+          {user ? <span style={{ ...pill, cursor: "pointer" }} title="Click to sign out" onClick={() => { if (confirm("Sign out?")) signOut(); }}>👤 {user.name.split(" ")[0]}</span> : <>
+            {!narrow && <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/login")}>Sign in</span>}
+            <span style={{ ...pill, background: GOLD, color: "#000", fontWeight: 700, border: 0, cursor: "pointer" }} onClick={() => router.push("/signup")}>Sign up</span></>}
         </nav>
         <div style={{ textAlign: "center", marginTop: "2vh" }}>
           <div style={{ fontFamily: "Impact, 'Arial Narrow', sans-serif", fontSize: "clamp(36px,6vw,64px)", letterSpacing: 2 }}>CINE<span style={{ color: GOLD }}>VERSE</span></div>

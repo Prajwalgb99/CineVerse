@@ -3,6 +3,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MOVIES } from "../../../data/movies";
+import BackButton from "../../../components/BackButton";
+import CitySelect from "../../../components/CitySelect";
+import { cityById } from "../../../data/cities";
+import { useHydrated } from "../../../lib/booking";
+import { useCity } from "../../../lib/city";
 import { fillLabel, getShows } from "../../../lib/shows";
 
 const GOLD = "#f7b731", HEAD = "Impact, 'Arial Narrow', sans-serif";
@@ -15,7 +20,8 @@ export default function MoviePage() {
   const [muted, setMuted] = useState(true), [videoOk, setVideoOk] = useState(true), [posterOk, setPosterOk] = useState(true);
   const [day, setDay] = useState(0), [days, setDays] = useState<Date[]>([]);
   useEffect(() => setDays(Array.from({ length: 5 }, (_, i) => new Date(Date.now() + i * 864e5))), []);
-  const theatres = useMemo(() => getShows(m.id, day), [m.id, day]);
+  const ready = useHydrated(), cityId = useCity((s) => s.city), city = cityById(ready ? cityId : "chennai");
+  const theatres = useMemo(() => getShows(m.id, day, city.id), [m.id, day, city.id]);
   const pick = useMemo(() => { // smart pick: nearest theatre with a prime-time show that isn't filling up
     for (const t of theatres) for (const s of t.shows) if (s.hour >= 18 && s.hour <= 21 && s.fill < 0.7) return s.id;
     return null;
@@ -24,15 +30,17 @@ export default function MoviePage() {
   return (
     <main style={{ background: "#07080c", color: "#fff", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
       <section style={{ position: "relative", height: "100svh", overflow: "hidden", background: `linear-gradient(160deg, ${m.color}, #05060a 70%)` }}>
+        {!m.yt && !videoOk && posterOk && <img src={`/posters/${m.id}.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(28px) brightness(0.55)", transform: "scale(1.15)" }} />}
         {m.yt ? <iframe key={m.yt + muted} title={m.title} allow="autoplay; encrypted-media"
           src={`https://www.youtube-nocookie.com/embed/${m.yt}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${m.yt}&playsinline=1&modestbranding=1&rel=0`}
           style={{ position: "absolute", top: "50%", left: "50%", width: "max(100vw, 177.78svh)", height: "max(56.25vw, 100svh)", transform: "translate(-50%,-50%)", border: 0, pointerEvents: "none" }} />
           : videoOk && <video key={m.id} src={`/trailers/${m.id}.mp4`} autoPlay muted={muted} loop playsInline onError={() => setVideoOk(false)}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #05060a 8%, transparent 55%), linear-gradient(to bottom, #05060a99, transparent 25%)" }} />
-        <Link href="/" style={{ position: "absolute", top: 20, left: "5vw", color: "#fff", textDecoration: "none", fontFamily: HEAD, letterSpacing: 1, fontSize: 20 }}>← CINEVERSE</Link>
+        <div style={{ position: "absolute", top: 20, left: "5vw", display: "flex", alignItems: "center", gap: 12, zIndex: 2 }}><BackButton /><Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, letterSpacing: 1, fontSize: 20 }}>CINEVERSE</Link></div>
+        <div style={{ position: "absolute", top: 20, right: "5vw", zIndex: 2 }}><CitySelect /></div>
         <div style={{ position: "absolute", left: "5vw", right: "5vw", bottom: "6vh", display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
-          {posterOk && <img src={`/posters/${m.id}.jpg`} alt="" onError={() => setPosterOk(false)} style={{ width: 90, height: 135, objectFit: "cover", borderRadius: 8 }} />}
+          {posterOk && <img src={`/posters/${m.id}.jpg`} alt="" onError={() => setPosterOk(false)} style={{ width: 108, height: 135, objectFit: "cover", borderRadius: 8 }} />}
           <div style={{ flex: 1, minWidth: 240 }}>
             <div style={{ fontSize: 12, color: "#ff4b55", letterSpacing: 2 }}>{videoOk || m.yt ? "OFFICIAL TRAILER" : "TRAILER COMING SOON"}</div>
             <div style={{ fontFamily: HEAD, fontSize: "clamp(40px,7vw,84px)", lineHeight: 1 }}>{m.title.toUpperCase()}</div>
@@ -44,7 +52,7 @@ export default function MoviePage() {
       </section>
 
       <section ref={board} style={{ padding: "6vh 5vw", maxWidth: 1100, margin: "0 auto" }}>
-        <h2 style={{ fontFamily: HEAD, fontSize: 34, margin: 0 }}>Pick a show</h2>
+        <h2 style={{ fontFamily: HEAD, fontSize: 34, margin: 0 }}>Pick a show in {city.name}</h2>
         <div style={{ display: "flex", gap: 10, margin: "18px 0 26px", flexWrap: "wrap" }}>
           {days.map((d, i) => (
             <button key={i} onClick={() => setDay(i)} style={{ ...pill, background: day === i ? "#fff" : "#ffffff10", color: day === i ? "#000" : "#fff", textAlign: "center" }}>
@@ -53,6 +61,7 @@ export default function MoviePage() {
             </button>
           ))}
         </div>
+        {!theatres.length && <p style={{ opacity: 0.7 }}>{m.title} is not showing in {city.name}. Try another city: <CitySelect /></p>}
         {theatres.map((t) => (
           <div key={t.id} style={{ display: "flex", gap: 24, padding: "18px 0", borderTop: "1px solid #ffffff14", flexWrap: "wrap" }}>
             <div style={{ width: 200 }}><b>{t.name}</b><div style={{ fontSize: 12, opacity: 0.6 }}>{t.area} · {t.dist} km</div></div>

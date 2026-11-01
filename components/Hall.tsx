@@ -2,13 +2,14 @@
 import { Environment, Lightformer } from "@react-three/drei";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { HALL, Seat } from "../lib/hall";
+import { Seat } from "../lib/hall";
+import { useHall } from "../lib/hallStore";
 import { useStore } from "../lib/store";
 import { useQuality } from "../lib/quality";
 
 import { canvasTex, carpet, fabricBump, noise } from "../lib/textures";
 
-const ROWS: Seat[] = (() => { const m = new Map<string, Seat>(); HALL.forEach((s) => m.has(s.row) || m.set(s.row, s)); return [...m.values()]; })();
+const rowsOf = (hall: Seat[]) => { const m = new Map<string, Seat>(); hall.forEach((s) => m.has(s.row) || m.set(s.row, s)); return [...m.values()]; };
 
 function Screen() {
   const [tex, setTex] = useState<THREE.Texture | null>(null);
@@ -40,7 +41,7 @@ function Screen() {
   );
 }
 
-function AisleLights() {
+function AisleLights({ ROWS }: { ROWS: Seat[] }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
   useLayoutEffect(() => {
     const o = new THREE.Object3D(); let i = 0;
@@ -55,6 +56,7 @@ function AisleLights() {
 
 export default function Hall() {
   const house = useStore((s) => s.house), hi = useQuality((s) => s.q === "high");
+  const hall = useHall((s) => s.hall), ROWS = useMemo(() => rowsOf(hall), [hall]);
   const { carpetMap, fabric, wall } = useMemo(() => ({
     carpetMap: canvasTex(256, carpet(), [6, 1]),
     fabric: canvasTex(128, fabricBump(), [3, 3], false),
@@ -104,7 +106,7 @@ export default function Hall() {
       <mesh position={[0, 0.3, 1.2]} receiveShadow castShadow><boxGeometry args={[14, 0.6, 2]} /><meshStandardMaterial color="#3a1618" roughness={0.6} /></mesh>
       <mesh position={[0, 0.62, 2.2]}><boxGeometry args={[14, 0.03, 0.04]} /><meshBasicMaterial color="#2cf5c8" toneMapped={false} /></mesh>
       <mesh position={[-8.75, 2.2, 22.5]}><boxGeometry args={[0.05, 0.3, 0.7]} /><meshBasicMaterial color="#27e36b" toneMapped={false} /></mesh>
-      <AisleLights />
+      <AisleLights ROWS={ROWS} />
 
       {/* lighting: dim cinema by default, warm house lights on demand */}
       <ambientLight intensity={house ? 0.8 : 0.1} color="#ffe3c2" />

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { Suspense, useEffect, useState } from "react";
+import BackButton from "../../components/BackButton";
 import { Ticket, useBooking, useHydrated } from "../../lib/booking";
 
 const GOLD = "#f7b731", HEAD = "Impact, 'Arial Narrow', sans-serif";
@@ -40,7 +41,7 @@ function List() {
 export default function Tickets() {
   return (
     <main style={{ background: "#07080c", color: "#fff", minHeight: "100vh", padding: "24px 5vw", fontFamily: "system-ui, sans-serif", maxWidth: 900, margin: "0 auto" }}>
-      <Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, fontSize: 20 }}>← CINEVERSE</Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}><BackButton href="/" /><Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, fontSize: 20 }}>CINEVERSE</Link></div>
       <h1 style={{ fontFamily: HEAD, fontWeight: 400, fontSize: 40 }}>My tickets</h1>
       <Suspense><List /></Suspense>
     </main>

@@ -5,6 +5,8 @@ import { useState } from "react";
 import { MOVIES } from "../../data/movies";
 import { SNACKS, useBooking, useHydrated } from "../../lib/booking";
 import { CATS, HALL } from "../../lib/hall";
+import BackButton from "../../components/BackButton";
+import { cityById } from "../../data/cities";
 import { getShows } from "../../lib/shows";
 
 const GOLD = "#f7b731", HEAD = "Impact, 'Arial Narrow', sans-serif", BY_ID = new Map(HALL.map((s) => [s.id, s]));
@@ -20,9 +22,9 @@ export default function Checkout() {
   if (!b.seats.length) return <main style={{ ...page, textAlign: "center" }}><p>No seats selected yet.</p><Link href="/" style={{ color: GOLD }}>Pick a movie</Link></main>;
 
   const movie = MOVIES.find((m) => m.id === b.movieId) ?? MOVIES[0];
-  const theatre = getShows(movie.id, b.day).find((t) => t.shows.some((s) => s.id === b.showId));
+  const theatre = getShows(movie.id, b.day, b.city).find((t) => t.shows.some((s) => s.id === b.showId));
   const show = theatre?.shows.find((s) => s.id === b.showId);
-  const seatTotal = b.seats.reduce((t, id) => t + CATS[BY_ID.get(id)!.cat].price, 0);
+  const seatTotal = (b.seatInfo ?? []).reduce((t, s) => t + s.price, 0);
   const lines = SNACKS.filter((s) => b.cart[s.id]);
   const snackTotal = lines.reduce((t, s) => t + s.price * b.cart[s.id], 0);
   const fee = 25 * b.seats.length, total = seatTotal + snackTotal + fee;
@@ -32,7 +34,7 @@ export default function Checkout() {
     setBusy(true);
     setTimeout(() => { // mock payment: always succeeds
       const id = "CV" + Math.random().toString(36).slice(2, 8).toUpperCase();
-      b.confirm({ id, movieId: movie.id, title: movie.title, theatre: theatre?.name ?? "Cineverse", area: theatre?.area ?? "", time: show?.time ?? "", fmt: show?.fmt ?? "2D", date, seats: b.seats, snacks: lines.map((s) => `${b.cart[s.id]}× ${s.name}`), total });
+      b.confirm({ id, movieId: movie.id, title: movie.title, theatre: theatre?.name ?? "Cineverse", area: (theatre?.area ?? "") + ", " + cityById(b.city).name, time: show?.time ?? "", fmt: show?.fmt ?? "2D", date, seats: b.seats, snacks: lines.map((s) => `${b.cart[s.id]}× ${s.name}`), total });
       router.replace("/tickets?new=" + id);
     }, 1500);
   };
@@ -40,7 +42,7 @@ export default function Checkout() {
   return (
     <main style={page}>
       <div style={{ display: "flex", gap: 18, marginBottom: 24, alignItems: "center" }}>
-        <Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, fontSize: 20 }}>CINEVERSE</Link>
+        <BackButton /><Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, fontSize: 20 }}>CINEVERSE</Link>
         {STEPS.map((s, i) => <span key={s} style={{ fontSize: 13, color: i === step ? GOLD : "#ffffff77", fontWeight: i === step ? 700 : 400 }}>{i + 1}. {s}</span>)}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
