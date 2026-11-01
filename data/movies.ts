@@ -6,6 +6,19 @@ const m = (id: string, title: string, lang: string, genre: string, dur: string, 
 // A local file /public/trailers/<id>.mp4 is used when no YouTube id is set.
 const YT: Record<string, string> = {
   // jailer2: "VIDEO_ID",
+  vikram: "OKBMCL-frPU",
+  leo: "Po3jStA673E",
+  coolie: "qeVfT2iLiu0",
+  varanasi: "DMD2uthghWE",
+  toxic: "sJwaiRN-rvc",
+  jailer2: "FW_PPcr1sPE",
+  ramayana: "lNaSdnz2I8g",
+  war2: "mjBym9uKth4",
+  kantara: "TMQUFhWm8C0",
+  pushpa2: "1kVK0MZlbI4",
+  salaar: "wcpzcXX5jq4",
+  animal: "8FkLRUJj-o0"
+
 };
 const RAW: Movie[] = [
   m("vikram", "Vikram", "Tamil", "Action, Thriller", "2h 53m", "UA", 8.4, "#7a1d1d"),
@@ -20,5 +33,6 @@ const RAW: Movie[] = [
   m("kantara", "Kantara", "Kannada", "Folk, Thriller", "2h 30m", "UA", 8.6, "#1d6a3a"),
   m("pushpa2", "Pushpa 2", "Telugu · Hindi", "Action, Drama", "3h 20m", "UA", 8.0, "#8a1d4a"),
   m("salaar", "Salaar", "Telugu · Kannada", "Action", "2h 55m", "A", 7.8, "#4a1d8a"),
+
 ];
 export const MOVIES: Movie[] = RAW.map((x) => ({ ...x, yt: YT[x.id] }));
