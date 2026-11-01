@@ -48,7 +48,7 @@ export default function Seats() {
       <instancedMesh ref={fab} args={[fabricGeo, undefined, HALL.length]} onClick={click} castShadow receiveShadow>
         <meshStandardMaterial roughness={0.85} bumpMap={bump} bumpScale={1.5} />
       </instancedMesh>
-      <instancedMesh ref={frm} args={[frameGeo, undefined, HALL.length]} onClick={click} castShadow receiveShadow>
+      <instancedMesh ref={frm} args={[frameGeo, undefined, HALL.length]} onClick={click} receiveShadow>
         <meshStandardMaterial color="#111114" roughness={0.45} metalness={0.5} />
       </instancedMesh>
     </>

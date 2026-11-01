@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
+import { Stars, Stats } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useRouter } from "next/navigation";
 import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import { MOVIES, Movie } from "../data/movies";
 
 const N = MOVIES.length, STEP = (Math.PI * 2) / N, R = 9, PW = 2.6, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
 const GOLD = "#f7b731";
+const FPS = typeof window !== "undefined" && location.search.includes("fps"); // add ?fps to the URL
 type St = { angle: number; vel: number; target: number | null; drag: boolean; last: number; x: number; idx: number };
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -97,7 +98,7 @@ export default function PanoramaHero() {
   const bar = useRef<HTMLDivElement | null>(null);
   const [idx, setIdx] = useState(0);
   const m = MOVIES[idx];
-  const go = (i: number) => router.push(`/book?movie=${MOVIES[i].id}`);
+  const go = (i: number) => router.push(`/movie/${MOVIES[i].id}`);
   const pick = (i: number) => {
     if (i === st.current.idx) return go(i);
     st.current.target = st.current.angle + wrap(i * STEP - st.current.angle); // side screen -> front
@@ -116,11 +117,12 @@ export default function PanoramaHero() {
     <div style={{ position: "fixed", inset: 0, background: "#05060a", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
       <div style={{ position: "absolute", inset: 0, touchAction: "none", cursor: "grab" }}
         onPointerDown={(e) => { const k = st.current; k.drag = true; k.vel = 0; k.target = null; k.x = e.clientX; }}>
-        <Canvas dpr={[1, 2]} camera={{ position: [0, 1.4, 8], fov: 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -9)}>
-          <Stars radius={70} depth={30} count={1800} factor={3} fade />
+        <Canvas dpr={[1, 1.5]} camera={{ position: [0, 1.4, 8], fov: 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -9)}>
+          <Stars radius={70} depth={30} count={900} factor={3} fade />
           {MOVIES.map((mv, i) => <Poster key={mv.id} m={mv} i={i} st={st} onPick={pick} />)}
           <Physics st={st} setIdx={setIdx} bar={bar} />
-          <EffectComposer><Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.9} /><Vignette offset={0.3} darkness={0.7} /></EffectComposer>
+          {FPS && <Stats />}
+          <EffectComposer multisampling={0}><Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.9} /><Vignette offset={0.3} darkness={0.7} /></EffectComposer>
         </Canvas>
       </div>
 
@@ -145,7 +147,7 @@ export default function PanoramaHero() {
               <div style={{ fontFamily: "Impact, 'Arial Narrow', sans-serif", fontSize: 30, letterSpacing: 1 }}>{m.title.toUpperCase()}</div>
               <div style={{ fontSize: 12, opacity: 0.75 }}>{m.cert} · {m.lang} · {m.genre} · {m.dur} · <span style={{ color: GOLD }}>★ {m.rating}</span></div>
             </div>
-            <span style={{ ...pill, borderRadius: 99, opacity: 0.6 }}>▶ Trailer</span>
+            <button style={{ ...pill, borderRadius: 99 }} onClick={() => go(idx)}>▶ Trailer</button>
             <button style={{ ...pill, borderRadius: 99, background: GOLD, color: "#000", fontWeight: 700, border: 0 }} onClick={() => go(idx)}>{m.status === "Pre-booking open" ? "Pre-book" : "Book tickets"}</button>
             <div style={{ position: "absolute", left: 16, right: 16, bottom: 0, height: 2, background: "#ffffff18" }}><div ref={bar} style={{ height: 2, background: GOLD, width: 0 }} /></div>
           </div>

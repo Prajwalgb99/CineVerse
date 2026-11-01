@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Stats } from "@react-three/drei";
 import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { useEffect, useRef } from "react";
@@ -10,6 +10,7 @@ import { Preset, useStore } from "../lib/store";
 import Hall from "./Hall";
 import Seats from "./Seats";
 
+const FPS = typeof window !== "undefined" && location.search.includes("fps"); // add ?fps to the URL
 const BY_ID = new Map(HALL.map((s) => [s.id, s]));
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 type Shot = [THREE.Vector3, THREE.Vector3];
@@ -70,9 +71,10 @@ export default function SeatPicker() {
   const tabs: [Preset, string][] = [["overview", "Overview"], ["stage", "From stage"], ["balcony", "Balcony"], ["bird", "Bird's eye"], ["tour", "Tour"]];
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <Canvas flat shadows camera={{ position: [0, 6.5, 22], fov: 55 }} dpr={[1, 2]} gl={{ antialias: false }}>
+      <Canvas flat shadows="basic" camera={{ position: [0, 6.5, 22], fov: 55 }} dpr={[1, 1.5]} gl={{ antialias: false }}>
         <Hall /><Seats /><Rig />
-        <EffectComposer>
+        {FPS && <Stats />}
+        <EffectComposer multisampling={0}>
           <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.85} />
           <Vignette offset={0.3} darkness={0.6} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
