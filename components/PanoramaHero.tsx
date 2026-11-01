@@ -132,7 +132,7 @@ export default function PanoramaHero() {
           {["Movies", "Events", "Plays", "Sports"].map((l) => <span key={l} style={{ fontSize: 13, opacity: 0.8 }}>{l}</span>)}
           <span style={{ flex: 1 }} />
           <span style={{ ...pill, minWidth: 180, opacity: 0.7 }}>Search movies, theatres…</span>
-          <span style={pill}>My tickets</span><span style={pill}>Chennai ▾</span>
+          <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/tickets")}>My tickets</span><span style={pill}>Chennai ▾</span>
           <span style={{ ...pill, background: GOLD, color: "#000", fontWeight: 700, border: 0 }}>Sign in</span>
         </nav>
         <div style={{ textAlign: "center", marginTop: "2vh" }}>

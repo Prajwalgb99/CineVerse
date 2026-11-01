@@ -57,7 +57,7 @@ export default function MoviePage() {
               {t.shows.map((s) => {
                 const [label, col] = fillLabel(s.fill);
                 return (
-                  <button key={s.id} onClick={() => router.push(`/book?movie=${m.id}&show=${s.id}`)}
+                  <button key={s.id} onClick={() => router.push(`/book?movie=${m.id}&show=${s.id}&day=${day}`)}
                     style={{ ...pill, border: `1px solid ${col}88`, textAlign: "left", position: "relative", minWidth: 120 }}>
                     {pick === s.id && <span style={{ position: "absolute", top: -9, left: 8, background: GOLD, color: "#000", fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "1px 8px" }}>★ Best pick</span>}
                     <b>{s.time}</b>

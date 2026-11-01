@@ -5,6 +5,8 @@ import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postp
 import { ToneMappingMode } from "postprocessing";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useRouter } from "next/navigation";
+import { useBooking } from "../lib/booking";
 import { CATS, HALL, bestSeats } from "../lib/hall";
 import { Preset, useStore } from "../lib/store";
 import Hall from "./Hall";
@@ -67,6 +69,12 @@ const btn = (on?: boolean): React.CSSProperties => ({
 
 export default function SeatPicker() {
   const { selected, preset, qty, house, set } = useStore();
+  const router = useRouter();
+  const next = () => {
+    const q = new URLSearchParams(location.search);
+    useBooking.getState().start({ movieId: q.get("movie") ?? "jailer2", showId: q.get("show") ?? "0-0", day: Number(q.get("day") ?? 0), seats: selected });
+    router.push("/checkout");
+  };
   const total = selected.reduce((t, id) => t + CATS[BY_ID.get(id)!.cat].price, 0);
   const tabs: [Preset, string][] = [["overview", "Overview"], ["stage", "From stage"], ["balcony", "Balcony"], ["bird", "Bird's eye"], ["tour", "Tour"]];
   return (
@@ -101,6 +109,7 @@ export default function SeatPicker() {
         <div style={{ fontSize: 13, opacity: 0.7, minHeight: 20 }}>{selected.join(", ") || "Click a seat or use Best seats"}</div>
         {selected.length > 0 && <button style={{ ...btn(), marginTop: 10, width: "100%" }} onClick={() => set({ preset: "seat" })}>View from my seat</button>}
         <div style={{ fontSize: 28, fontWeight: 700, marginTop: 10 }}>₹{total}</div>
+        <button disabled={!selected.length} onClick={next} style={{ ...btn(true), width: "100%", marginTop: 10, padding: 12, fontWeight: 700, background: selected.length ? "#f7b731" : "#333", color: selected.length ? "#000" : "#777" }}>Continue · Add snacks</button>
       </div>
     </div>
   );
