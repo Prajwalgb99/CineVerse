@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MOVIES } from "../../../data/movies";
 import BackButton from "../../../components/BackButton";
+import Trailer from "../../../components/Trailer";
 import CitySelect from "../../../components/CitySelect";
 import { cityById } from "../../../data/cities";
 import { useHydrated } from "../../../lib/booking";
@@ -31,22 +32,18 @@ export default function MoviePage() {
     <main style={{ background: "#07080c", color: "#fff", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
       <section style={{ position: "relative", height: "100svh", overflow: "hidden", background: `linear-gradient(160deg, ${m.color}, #05060a 70%)` }}>
         {!m.yt && !videoOk && posterOk && <img src={`/posters/${m.id}.jpg`} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(28px) brightness(0.55)", transform: "scale(1.15)" }} />}
-        {m.yt ? <iframe key={m.yt + muted} title={m.title} allow="autoplay; encrypted-media"
-          src={`https://www.youtube-nocookie.com/embed/${m.yt}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${m.yt}&playsinline=1&modestbranding=1&rel=0`}
-          style={{ position: "absolute", top: "50%", left: "50%", width: "max(100vw, 177.78svh)", height: "max(56.25vw, 100svh)", transform: "translate(-50%,-50%)", border: 0, pointerEvents: "none" }} />
-          : videoOk && <video key={m.id} src={`/trailers/${m.id}.mp4`} autoPlay muted={muted} loop playsInline onError={() => setVideoOk(false)}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+        {(m.yt || videoOk) && <Trailer key={m.id} yt={m.yt} id={m.id} onFail={() => setVideoOk(false)} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #05060a 8%, transparent 55%), linear-gradient(to bottom, #05060a99, transparent 25%)" }} />
         <div style={{ position: "absolute", top: 20, left: "5vw", display: "flex", alignItems: "center", gap: 12, zIndex: 2 }}><BackButton /><Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, letterSpacing: 1, fontSize: 20 }}>CINEVERSE</Link></div>
         <div style={{ position: "absolute", top: 20, right: "5vw", zIndex: 2 }}><CitySelect /></div>
-        <div style={{ position: "absolute", left: "5vw", right: "5vw", bottom: "6vh", display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ position: "absolute", left: "5vw", right: "5vw", bottom: "13vh", display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
           {posterOk && <img src={`/posters/${m.id}.jpg`} alt="" onError={() => setPosterOk(false)} style={{ width: 108, height: 135, objectFit: "cover", borderRadius: 8 }} />}
           <div style={{ flex: 1, minWidth: 240 }}>
             <div style={{ fontSize: 12, color: "#ff4b55", letterSpacing: 2 }}>{videoOk || m.yt ? "OFFICIAL TRAILER" : "TRAILER COMING SOON"}</div>
             <div style={{ fontFamily: HEAD, fontSize: "clamp(40px,7vw,84px)", lineHeight: 1 }}>{m.title.toUpperCase()}</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>{m.cert} · {m.lang} · {m.dur} · <span style={{ color: GOLD }}>★ {m.rating}</span> · {m.genre}</div>
           </div>
-          {(videoOk || m.yt) && <button onClick={() => setMuted(!muted)} style={pill}>{muted ? "Sound off" : "Sound on"}</button>}
+          
           <button onClick={() => board.current?.scrollIntoView({ behavior: "smooth" })} style={{ ...pill, background: "#ff2b3a", border: 0, fontWeight: 700 }}>Book tickets ↓</button>
         </div>
       </section>
@@ -61,7 +58,7 @@ export default function MoviePage() {
             </button>
           ))}
         </div>
-        {!theatres.length && <p style={{ opacity: 0.7 }}>{m.title} is not showing in {city.name}. Try another city: <CitySelect /></p>}
+        {!theatres.length && <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}><span style={{ opacity: 0.7 }}>{m.title} is not showing in {city.name}. Try another city:</span><CitySelect /></div>}
         {theatres.map((t) => (
           <div key={t.id} style={{ display: "flex", gap: 24, padding: "18px 0", borderTop: "1px solid #ffffff14", flexWrap: "wrap" }}>
             <div style={{ width: 200 }}><b>{t.name}</b><div style={{ fontSize: 12, opacity: 0.6 }}>{t.area} · {t.dist} km</div></div>

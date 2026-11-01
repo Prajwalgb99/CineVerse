@@ -1,6 +1,5 @@
 "use client";
-import { CSSProperties, ReactNode, useState } from "react";
-import { MOVIES } from "../data/movies";
+import { CSSProperties, ReactNode } from "react";
 import BackButton from "./BackButton";
 
 export const GOLD = "#f7b731", HEAD = "Impact, 'Arial Narrow', sans-serif";
@@ -8,45 +7,44 @@ export const inp: CSSProperties = { width: "100%", boxSizing: "border-box", marg
 export function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return <label style={{ display: "block", marginBottom: 14 }}><span style={{ fontSize: 12, opacity: 0.7 }}>{label}</span>{children}{error && <span style={{ color: "#ff6b75", fontSize: 11 }}>{error}</span>}</label>;
 }
-const TILES: [string, string, number, number, string, number][] = [["jailer2", "6%", 6, -9, "0s", 0], ["varanasi", "30%", 40, 7, "1.2s", 1], ["kantara", "58%", 8, -5, "2.4s", 2], ["rrr", "18%", 56, 6, "0.6s", 3]];
-function Tile({ id, top, left, rot, delay }: { id: string; top: string; left: number; rot: number; delay: string }) {
-  const m = MOVIES.find((x) => x.id === id)!, [img, setImg] = useState(true);
-  return (
-    <div className="cv-tile" style={{ top, left: `${left}%`, animationDelay: delay, ["--r" as string]: `${rot}deg`, background: `linear-gradient(160deg, ${m.color}, #05060a)` } as CSSProperties}>
-      {img && <img src={`/posters/${m.id}.jpg`} alt="" onError={() => setImg(false)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
-      <span style={{ position: "absolute", left: 10, bottom: 8, fontFamily: HEAD, fontSize: 18, textShadow: "0 2px 8px #000" }}>{m.title.toUpperCase()}</span>
-    </div>
-  );
-}
+const DUST = Array.from({ length: 16 }, (_, i) => ({ l: (i * 37) % 100, d: 6 + (i * 7) % 9, s: (i * 13) % 10 }));
 
 export default function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <main className="cv-auth" style={{ minHeight: "100svh", display: "grid", gridTemplateColumns: "1.1fr 1fr", background: "#07080c", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
       <style>{`
-        .cv-art{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% -10%,#1b2a4a,#07080c 70%)}
-        .cv-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;animation:cvb 14s ease-in-out infinite alternate}
-        .cv-tile{position:absolute;width:150px;height:210px;border-radius:14px;overflow:hidden;box-shadow:0 24px 50px #000c;border:1px solid #ffffff22;animation:cvf 7s ease-in-out infinite}
+        .cv-art{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 0%,#14234a 0%,#070912 62%,#04050b 100%)}
+        .cv-beam{position:absolute;top:-2%;left:50%;width:140%;height:78%;transform:translateX(-50%);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%);background:linear-gradient(180deg,#cfe3ff55,#cfe3ff00 92%);animation:cvq 5s ease-in-out infinite}
+        .cv-lamp{position:absolute;top:-70px;left:50%;width:160px;height:160px;margin-left:-80px;border-radius:50%;background:radial-gradient(circle,#fff,#8cb8ff 30%,#0000 70%);filter:blur(6px)}
+        .cv-floor{position:absolute;left:-10%;right:-10%;bottom:-18%;height:46%;border-radius:50%;background:radial-gradient(ellipse,#f7b73155,#3b6dff22 45%,#0000 70%)}
+        .cv-film{position:absolute;top:0;bottom:0;width:46px;background:#090b12;border-inline:1px solid #ffffff18;background-image:linear-gradient(#ffffff2a 58%,#0000 58%),linear-gradient(#ffffff2a 58%,#0000 58%);background-size:14px 34px;background-repeat:repeat-y;background-position:6px 0,26px 0;animation:cvs 7s linear infinite;opacity:.8}
+        .cv-reel{position:absolute;top:19%;left:50%;width:150px;height:150px;margin-left:-75px;animation:cvr 24s linear infinite;filter:drop-shadow(0 0 22px #f7b73166)}
+        .cv-dust{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:#cfe3ff;opacity:0;animation:cvd linear infinite}
         .cv-in:focus{outline:none;border-color:${GOLD};box-shadow:0 0 0 3px ${GOLD}33}
         .cv-btn{transition:transform .15s,box-shadow .2s}.cv-btn:hover{transform:translateY(-1px);box-shadow:0 10px 30px ${GOLD}44}
-        @keyframes cvb{to{transform:translate(60px,40px) scale(1.2)}}
-        @keyframes cvf{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-18px) rotate(var(--r))}}
+        @keyframes cvq{0%,100%{opacity:.85}50%{opacity:1}}
+        @keyframes cvs{to{background-position:6px 34px,26px 34px}}
+        @keyframes cvr{to{transform:rotate(360deg)}}
+        @keyframes cvd{0%{transform:translateY(0);opacity:0}15%{opacity:.8}100%{transform:translateY(-520px);opacity:0}}
         @keyframes cvc{to{stroke-dashoffset:0}}
         @keyframes cvu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
         @media (max-width:900px){.cv-auth{grid-template-columns:1fr !important}.cv-art{display:none !important}}
       `}</style>
       <section className="cv-art">
-        <div className="cv-blob" style={{ width: 380, height: 380, background: "#1d4fd8", top: -80, left: -60 }} />
-        <div className="cv-blob" style={{ width: 340, height: 340, background: "#f7b731", bottom: -90, right: -40, animationDelay: "3s" }} />
-        <div className="cv-blob" style={{ width: 260, height: 260, background: "#d6204a", top: "45%", left: "35%", animationDelay: "6s" }} />
-        {TILES.map(([id, top, left, rot, delay]) => <Tile key={id} id={id} top={top} left={left} rot={rot} delay={delay} />)}
-        <div style={{ position: "absolute", left: "8%", right: "8%", bottom: "7%" }}>
-          <div style={{ fontFamily: HEAD, fontSize: 18, letterSpacing: 2, opacity: 0.8 }}>CINEVERSE</div>
+        <div className="cv-beam" /><div className="cv-lamp" /><div className="cv-floor" />
+        <div className="cv-film" style={{ left: 0 }} /><div className="cv-film" style={{ right: 0 }} />
+        {DUST.map((p, i) => <i key={i} className="cv-dust" style={{ left: `${p.l}%`, animationDuration: `${p.d}s`, animationDelay: `${p.s * 0.6}s` }} />)}
+        <svg className="cv-reel" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="#0b0e18" stroke="#f7b731" strokeWidth="2.5" />
+          <circle cx="50" cy="50" r="8" fill="#f7b731" />
+          {[0, 60, 120, 180, 240, 300].map((a) => <circle key={a} cx={50 + 26 * Math.cos((a * Math.PI) / 180)} cy={50 + 26 * Math.sin((a * Math.PI) / 180)} r="9" fill="#04050b" stroke="#f7b73188" strokeWidth="1.5" />)}
+        </svg>
+        <div style={{ position: "absolute", left: "12%", right: "12%", bottom: "7%" }}>
+          <div style={{ fontFamily: HEAD, fontSize: 18, letterSpacing: 3, opacity: 0.75 }}>CINEVERSE</div>
           <div style={{ fontFamily: HEAD, fontSize: "clamp(40px,5vw,72px)", lineHeight: 1, background: `linear-gradient(90deg,#fff,${GOLD})`, WebkitBackgroundClip: "text", color: "transparent" }}>YOUR SEAT<br />IS WAITING.</div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 0", fontSize: 14, opacity: 0.85, lineHeight: 1.9 }}>
-            <li>✦ See the screen from your seat before you pay</li>
-            <li>✦ Best-seat finder for you and your group</li>
-            <li>✦ Every ticket and QR saved in one place</li>
-          </ul>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+            {["7 cities", "3D seat view", "QR tickets"].map((t) => <span key={t} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 99, border: "1px solid #ffffff2a", background: "#ffffff0d" }}>{t}</span>)}
+          </div>
         </div>
       </section>
       <section style={{ display: "grid", placeItems: "center", padding: "32px 5vw", position: "relative" }}>

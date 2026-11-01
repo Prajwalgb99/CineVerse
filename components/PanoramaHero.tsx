@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { Stars, Stats } from "@react-three/drei";
+import { Sparkles, Stars, Stats } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useRouter } from "next/navigation";
 import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
@@ -9,12 +9,12 @@ import { cityById, moviesFor } from "../data/cities";
 import { MOVIES, Movie } from "../data/movies";
 import { useAuth } from "../lib/auth";
 import { useCity } from "../lib/city";
-import CitySelect from "./CitySelect";
+import NavBar from "./NavBar";
 import { useNarrow, useQuality } from "../lib/quality";
 
 
 let ring: Movie[] = MOVIES, N = ring.length, STEP = (Math.PI * 2) / N, R = 9;
-const SPACING = 4.7, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
+const SPACING = 3.7, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
 const setRing = (list: Movie[]) => { ring = list; N = Math.max(list.length, 1); STEP = (Math.PI * 2) / N; R = N > 1 ? SPACING / (2 * Math.sin(Math.min(STEP, Math.PI - 0.01) / 2)) : 9; };
 const GOLD = "#f7b731";
 const FPS = typeof window !== "undefined" && location.search.includes("fps"); // add ?fps to the URL
@@ -44,13 +44,47 @@ const fade = () => {
   return (fadeTex = new THREE.CanvasTexture(cv));
 };
 
+
+const tex = (draw: (c: CanvasRenderingContext2D) => void) => {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 256; draw(cv.getContext("2d")!);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+};
+const radial = (c: CanvasRenderingContext2D, stops: [number, string][]) => { const g = c.createRadialGradient(128, 128, 0, 128, 128, 128); stops.forEach(([o, col]) => g.addColorStop(o, col)); c.fillStyle = g; return g; };
+function labelTex(m: Movie) { // title + language/rating, drawn above each poster
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 128;
+  const c = cv.getContext("2d")!; c.textAlign = "center"; c.fillStyle = "#fff"; c.shadowColor = "#000"; c.shadowBlur = 8;
+  c.font = "64px Impact, 'Arial Narrow', sans-serif"; c.fillText(m.title.toUpperCase(), 256, 66, 490);
+  c.shadowBlur = 0; c.fillStyle = "#ffffffb8"; c.font = "26px system-ui, sans-serif"; c.fillText(`${m.lang.split(" · ")[0]} · ★ ${m.rating}`, 256, 108, 490);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+/** Fixed deep-black night scene: glowing planet, projector beam onto the front screen, floor glow, drifting sparkles. */
+function Backdrop() {
+  const t = useMemo(() => ({
+    glow: tex((c) => { radial(c, [[0, "#ffffffcc"], [0.35, "#6fa8ffaa"], [1, "#0000"]]); c.fillRect(0, 0, 256, 256); }),
+    planet: tex((c) => { radial(c, [[0, "#c9e4ff"], [0.5, "#3f86ff"], [1, "#0a1650"]]); c.beginPath(); c.arc(128, 128, 126, 0, 7); c.fill(); }),
+    cone: tex((c) => { const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#bcd8ff70"); g.addColorStop(1, "#bcd8ff00"); c.fillStyle = g; c.beginPath(); c.moveTo(108, 0); c.lineTo(148, 0); c.lineTo(256, 256); c.lineTo(0, 256); c.closePath(); c.fill(); }),
+    floor: tex((c) => { radial(c, [[0, "#ffd37a99"], [0.5, "#5f8dff33"], [1, "#0000"]]); c.fillRect(0, 0, 256, 256); }),
+  }), []);
+  const add = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false } as const;
+  return (
+    <>
+      <mesh position={[0, 11.5, -R - 6]}><planeGeometry args={[36, 36]} /><meshBasicMaterial map={t.glow} {...add} opacity={0.5} /></mesh>
+      <mesh position={[0, 11.5, -R - 5]}><planeGeometry args={[11, 11]} /><meshBasicMaterial map={t.planet} transparent toneMapped={false} /></mesh>
+      <mesh position={[0, 4.4, -R - 0.6]}><planeGeometry args={[11, 13]} /><meshBasicMaterial map={t.cone} {...add} /></mesh>
+      <mesh position={[0, FLOOR + 0.02, -R + 1.2]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[11, 6]} /><meshBasicMaterial map={t.floor} {...add} /></mesh>
+      <Sparkles count={70} scale={[26, 9, 8]} position={[0, 3, -R + 2]} size={2.5} speed={0.25} opacity={0.6} color="#9ec9ff" />
+    </>
+  );
+}
+
 function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObject<St>; onPick: (i: number, was: number) => void }) {
   const g = useRef<THREE.Group>(null!), mat = useRef<THREE.MeshBasicMaterial>(null!);
-  const refl = useRef<THREE.MeshBasicMaterial>(null!), glow = useRef<THREE.MeshBasicMaterial>(null!);
+  const refl = useRef<THREE.MeshBasicMaterial>(null!), glow = useRef<THREE.MeshBasicMaterial>(null!), lab = useRef<THREE.MeshBasicMaterial>(null!);
+  const labelT = useMemo(() => labelTex(m), [m]);
   const [tex, setTex] = useState<THREE.Texture>(() => posterTex(m));
   const [asp, setAsp] = useState(0.8); // plane shape follows the image (800x1000 = 0.8)
   useEffect(() => {
-    const tryExt = (n: number) => { if (n >= EXT.length) return; new THREE.TextureLoader().load(`/posters/${m.id}.${EXT[n]}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setAsp(Math.max(0.6, Math.min(1.05, t.image.width / t.image.height))); setTex(t); }, undefined, () => tryExt(n + 1)); };
+    const tryExt = (n: number) => { if (n >= EXT.length) return; new THREE.TextureLoader().load(`/posters/${m.id}.${EXT[n]}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setAsp(Math.max(0.6, Math.min(0.9, t.image.width / t.image.height))); setTex(t); }, undefined, () => tryExt(n + 1)); };
     tryExt(0);
   }, [m.id]);
   useFrame(() => {
@@ -60,10 +94,11 @@ function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObjec
     g.current.rotation.y = -th; // faces inward, towards the viewer
     g.current.scale.setScalar(sc);
     const b = 1 - 0.65 * Math.min(1, Math.abs(th) / (STEP * 2.3)); // side screens darker by angle
-    mat.current.color.setScalar(b); refl.current.color.setScalar(b); glow.current.opacity = near;
+    mat.current.color.setScalar(b); refl.current.color.setScalar(b); glow.current.opacity = near; lab.current.color.setScalar(b);
   });
   return (
     <group ref={g}>
+      <mesh position={[0, PH / 2 + 0.5, 0]}><planeGeometry args={[3.4, 0.85]} /><meshBasicMaterial ref={lab} map={labelT} transparent toneMapped={false} depthWrite={false} /></mesh>
       <mesh position={[0, 0, -0.02]}><planeGeometry args={[PH * asp + 0.18, PH + 0.18]} /><meshBasicMaterial ref={glow} color={GOLD} transparent toneMapped={false} /></mesh>
       <mesh
         onPointerDown={(e) => { st.current.tap = { i, idx: st.current.idx, t: performance.now(), x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }; }}
@@ -101,8 +136,7 @@ function Physics({ st, setIdx, bar }: { st: MutableRefObject<St>; setIdx: (i: nu
     if (bar.current) bar.current.style.width = (k.drag || k.target !== null ? 0 : Math.min(1, (t - k.last) / AUTO) * 100) + "%";
     const idx = ((Math.round(k.angle / STEP) % N) + N) % N;
     if (idx !== k.idx) { k.idx = idx; setIdx(idx); }
-    tint.current.set(ring[idx]?.color ?? "#05060a").multiplyScalar(0.35); // sky follows the front poster
-    bg.current.lerp(tint.current, 0.04); scene.background = bg.current;
+    
   });
   return null;
 }
@@ -151,7 +185,9 @@ export default function PanoramaHero() {
           if (Math.abs(k.wheel) > 50 && performance.now() - k.wt > 300) { nudge(k.wheel > 0 ? 1 : -1); k.wheel = 0; k.wt = performance.now(); }
         }}
         onPointerDown={(e) => { const k = st.current; k.drag = true; k.vel = 0; k.target = null; k.x = e.clientX; }}>
-        <Canvas key={q + cityId} frameloop={vis ? "always" : "never"} dpr={hi ? [1, 1.5] : 1} camera={{ position: [0, 1.4, 17 - R], fov: narrow ? 72 : 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -R)}>
+        <Canvas key={q + cityId} frameloop={vis ? "always" : "never"} dpr={hi ? [1, 1.5] : 1} camera={{ position: [0, 1.4, 17 - R], fov: narrow ? 72 : 42 }} onCreated={({ camera }) => camera.lookAt(0, 2.3, -R)}>
+          <color attach="background" args={["#04050b"]} />
+          <Backdrop />
           <Stars radius={70} depth={30} count={900} factor={3} fade />
           {ring.map((mv, i) => <Poster key={mv.id} m={mv} i={i} st={st} onPick={pick} />)}
           <Physics st={st} setIdx={setIdx} bar={bar} />
@@ -161,19 +197,9 @@ export default function PanoramaHero() {
       </div>
 
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", color: "#fff" }}>
-        <nav style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 20, padding: "18px 5vw", flexWrap: "wrap" }}>
-          <b style={{ fontFamily: "Impact, sans-serif", letterSpacing: 1, fontSize: 20 }}><span style={{ background: GOLD, color: "#000", borderRadius: 6, padding: "2px 7px", marginRight: 8 }}>▣</span>CINEVERSE</b>
-          {["Movies", "Events", "Plays", "Sports"].map((l) => <span key={l} style={{ fontSize: 13, opacity: 0.8 }}>{l}</span>)}
-          <span style={{ flex: 1 }} />
-          {!narrow && <span style={{ ...pill, minWidth: 180, opacity: 0.7 }}>Search movies, theatres…</span>}
-          <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/tickets")}>My tickets</span>
-          <span style={{ ...pill, cursor: "pointer" }} onClick={() => setQ(hi ? "low" : "high")}>{hi ? "High" : "Low"} quality</span><CitySelect />
-          {user ? <span style={{ ...pill, cursor: "pointer" }} title="Click to sign out" onClick={() => { if (confirm("Sign out?")) signOut(); }}>👤 {user.name.split(" ")[0]}</span> : <>
-            {!narrow && <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/login")}>Sign in</span>}
-            <span style={{ ...pill, background: GOLD, color: "#000", fontWeight: 700, border: 0, cursor: "pointer" }} onClick={() => router.push("/signup")}>Sign up</span></>}
-        </nav>
+        <NavBar narrow={narrow} hi={hi} onQuality={() => setQ(hi ? "low" : "high")} />
         <div style={{ textAlign: "center", marginTop: "2vh" }}>
-          <div style={{ fontFamily: "Impact, 'Arial Narrow', sans-serif", fontSize: "clamp(36px,6vw,64px)", letterSpacing: 2 }}>CINE<span style={{ color: GOLD }}>VERSE</span></div>
+          <div style={{ fontFamily: "Impact, 'Arial Narrow', sans-serif", fontSize: "clamp(30px,4.4vw,50px)", letterSpacing: 2 }}>CINE<span style={{ color: GOLD }}>VERSE</span></div>
           <div style={{ fontSize: 11, letterSpacing: 3, opacity: 0.55 }}>SWIPE OR DRAG TO BROWSE · TAP A SCREEN TO OPEN</div>
         </div>
         <div style={{ position: "absolute", bottom: "4vh", left: 0, right: 0, display: "flex", justifyContent: "center", alignItems: "center", gap: 14, pointerEvents: "auto" }}>
