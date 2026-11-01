@@ -5,6 +5,7 @@ import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postp
 import { ToneMappingMode } from "postprocessing";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useNarrow, useQuality } from "../lib/quality";
 import { useRouter } from "next/navigation";
 import { useBooking } from "../lib/booking";
 import { CATS, HALL, bestSeats } from "../lib/hall";
@@ -70,6 +71,12 @@ const btn = (on?: boolean): React.CSSProperties => ({
 export default function SeatPicker() {
   const { selected, preset, qty, house, set } = useStore();
   const router = useRouter();
+  const q = useQuality((s) => s.q), setQ = useQuality((s) => s.set), narrow = useNarrow(), hi = q === "high";
+  const ctrls = (<>
+    <a href="/" style={{ ...btn(), textDecoration: "none" }}>← Home</a>
+    <button style={btn(house)} onClick={() => set({ house: !house })}>House lights</button>
+    <button style={btn()} onClick={() => setQ(hi ? "low" : "high")}>Quality: {hi ? "High" : "Low"}</button>
+  </>);
   const next = () => {
     const q = new URLSearchParams(location.search);
     useBooking.getState().start({ movieId: q.get("movie") ?? "jailer2", showId: q.get("show") ?? "0-0", day: Number(q.get("day") ?? 0), seats: selected });
@@ -79,21 +86,21 @@ export default function SeatPicker() {
   const tabs: [Preset, string][] = [["overview", "Overview"], ["stage", "From stage"], ["balcony", "Balcony"], ["bird", "Bird's eye"], ["tour", "Tour"]];
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <Canvas flat shadows="basic" camera={{ position: [0, 6.5, 22], fov: 55 }} dpr={[1, 1.5]} gl={{ antialias: false }}>
+      <Canvas key={q} flat shadows={hi ? "basic" : false} camera={{ position: [0, 6.5, 22], fov: narrow ? 70 : 55 }} dpr={hi ? [1, 1.5] : 1} gl={{ antialias: false }}>
         <Hall /><Seats /><Rig />
         {FPS && <Stats />}
-        <EffectComposer multisampling={0}>
+        {hi && <EffectComposer multisampling={0}>
           <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.85} />
           <Vignette offset={0.3} darkness={0.6} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        </EffectComposer>
+        </EffectComposer>}
       </Canvas>
-      <div style={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 8, flexWrap: "wrap", maxWidth: "60vw" }}>
+      <div style={{ position: "absolute", top: 12, left: 12, right: narrow ? 12 : "auto", display: "flex", gap: 8, flexWrap: "wrap", maxWidth: narrow ? "none" : "60vw" }}>
         {tabs.map(([k, l]) => <button key={k} style={btn(preset === k)} onClick={() => set({ preset: k })}>{l}</button>)}
+        {narrow && ctrls}
       </div>
-      <a href="/" style={{ ...btn(), position: "absolute", bottom: 16, left: 130, textDecoration: "none" }}>← Home</a>
-      <button style={{ ...btn(house), position: "absolute", bottom: 16, left: 16 }} onClick={() => set({ house: !house })}>House lights</button>
-      <div style={{ position: "absolute", top: 16, right: 16, width: 280, padding: 16, borderRadius: 16, background: "#0b0d12ee", border: "1px solid #ffffff18" }}>
+      {!narrow && <div style={{ position: "absolute", bottom: 16, left: 16, display: "flex", gap: 8 }}>{ctrls}</div>}
+      <div style={narrow ? { position: "absolute", left: 0, right: 0, bottom: 0, maxHeight: "42vh", overflowY: "auto", padding: 14, borderRadius: "16px 16px 0 0", background: "#0b0d12f2", border: "1px solid #ffffff18" } : { position: "absolute", top: 16, right: 16, width: 280, padding: 16, borderRadius: 16, background: "#0b0d12ee", border: "1px solid #ffffff18" }}>
         {Object.values(CATS).map((c) => (
           <div key={c.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0" }}>
             <span><i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: c.color, marginRight: 8 }} />{c.label}</span>

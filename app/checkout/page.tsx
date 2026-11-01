@@ -43,8 +43,8 @@ export default function Checkout() {
         <Link href="/" style={{ color: "#fff", textDecoration: "none", fontFamily: HEAD, fontSize: 20 }}>CINEVERSE</Link>
         {STEPS.map((s, i) => <span key={s} style={{ fontSize: 13, color: i === step ? GOLD : "#ffffff77", fontWeight: i === step ? 700 : 400 }}>{i + 1}. {s}</span>)}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 24 }}>
-        <div style={{ gridColumn: "span 2" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
+        <div style={{ flex: "2 1 420px", minWidth: 0 }}>
           {step === 0 && (
             <div style={card}>
               <h2 style={h2}>Add snacks <small style={{ fontWeight: 400, opacity: 0.6 }}>· optional</small></h2>
@@ -91,7 +91,7 @@ export default function Checkout() {
               : <button style={btn} onClick={pay} disabled={busy}>{busy ? "Processing…" : `Pay ₹${total}`}</button>}
           </div>
         </div>
-        <aside style={{ ...card, alignSelf: "start" }}>
+        <aside style={{ ...card, alignSelf: "start", flex: "1 1 280px" }}>
           <b>{movie.title}</b>
           <Row l={`Seats (${b.seats.length})`} r={seatTotal} />
           {snackTotal > 0 && <Row l="Snacks" r={snackTotal} />}

@@ -1,8 +1,13 @@
-export interface Movie { id: string; title: string; lang: string; genre: string; dur: string; cert: string; rating: number; color: string; status: string }
+export interface Movie { id: string; title: string; lang: string; genre: string; dur: string; cert: string; rating: number; color: string; status: string; yt?: string }
 const m = (id: string, title: string, lang: string, genre: string, dur: string, cert: string, rating: number, color: string, status = "Now showing"): Movie =>
   ({ id, title, lang, genre, dur, cert, rating, color, status });
 // Dummy data. Put real posters at /public/posters/<id>.jpg (2:3) and they replace the generated ones.
-export const MOVIES: Movie[] = [
+// Optional YouTube trailer ids, e.g. jailer2: "AbC123xyz_0" (the part after v= in the URL).
+// A local file /public/trailers/<id>.mp4 is used when no YouTube id is set.
+const YT: Record<string, string> = {
+  // jailer2: "VIDEO_ID",
+};
+const RAW: Movie[] = [
   m("vikram", "Vikram", "Tamil", "Action, Thriller", "2h 53m", "UA", 8.4, "#7a1d1d"),
   m("leo", "Leo", "Tamil · Hindi", "Action", "2h 44m", "UA 13+", 8.1, "#1d5a6e"),
   m("coolie", "Coolie", "Tamil · Telugu", "Action, Thriller", "2h 50m", "UA", 8.4, "#b8561d"),
@@ -16,3 +21,4 @@ export const MOVIES: Movie[] = [
   m("pushpa2", "Pushpa 2", "Telugu · Hindi", "Action, Drama", "3h 20m", "UA", 8.0, "#8a1d4a"),
   m("salaar", "Salaar", "Telugu · Kannada", "Action", "2h 55m", "A", 7.8, "#4a1d8a"),
 ];
+export const MOVIES: Movie[] = RAW.map((x) => ({ ...x, yt: YT[x.id] }));

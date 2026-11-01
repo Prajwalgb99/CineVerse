@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { MOVIES, Movie } from "../data/movies";
+import { useNarrow, useQuality } from "../lib/quality";
+
 
 const N = MOVIES.length, STEP = (Math.PI * 2) / N, R = 9, PW = 2.6, PH = 3.9, FLOOR = -0.75, AUTO = 5.2;
 const GOLD = "#f7b731";
 const FPS = typeof window !== "undefined" && location.search.includes("fps"); // add ?fps to the URL
-type St = { angle: number; vel: number; target: number | null; drag: boolean; last: number; x: number; idx: number };
+type St = { angle: number; vel: number; target: number | null; drag: boolean; last: number; x: number; idx: number; wheel: number; wt: number };
+const EXT = ["jpg", "webp", "png"];
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 function posterTex(m: Movie) {
@@ -40,7 +43,8 @@ function Poster({ m, i, st, onPick }: { m: Movie; i: number; st: MutableRefObjec
   const refl = useRef<THREE.MeshBasicMaterial>(null!), glow = useRef<THREE.MeshBasicMaterial>(null!);
   const [tex, setTex] = useState<THREE.Texture>(() => posterTex(m));
   useEffect(() => {
-    new THREE.TextureLoader().load(`/posters/${m.id}.jpg`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setTex(t); }, undefined, () => {});
+    const tryExt = (n: number) => { if (n >= EXT.length) return; new THREE.TextureLoader().load(`/posters/${m.id}.${EXT[n]}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; setTex(t); }, undefined, () => tryExt(n + 1)); };
+    tryExt(0);
   }, [m.id]);
   useFrame(() => {
     const th = wrap(i * STEP - st.current.angle);
@@ -94,7 +98,8 @@ const pill: React.CSSProperties = { padding: "8px 14px", borderRadius: 10, borde
 
 export default function PanoramaHero() {
   const router = useRouter();
-  const st = useRef<St>({ angle: 0, vel: 0, target: null, drag: false, last: 0, x: 0, idx: 0 });
+  const q = useQuality((s) => s.q), setQ = useQuality((s) => s.set), narrow = useNarrow(), hi = q === "high";
+  const st = useRef<St>({ angle: 0, vel: 0, target: null, drag: false, last: 0, x: 0, idx: 0, wheel: 0, wt: 0 });
   const bar = useRef<HTMLDivElement | null>(null);
   const [idx, setIdx] = useState(0);
   const m = MOVIES[idx];
@@ -107,22 +112,32 @@ export default function PanoramaHero() {
 
   useEffect(() => {
     const k = st.current;
-    const move = (e: PointerEvent) => { if (!k.drag) return; const d = -(e.clientX - k.x) * 0.004; k.x = e.clientX; k.angle += d; k.vel = k.vel * 0.5 + d * 0.5; };
-    const up = () => { k.drag = false; };
-    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
-    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    const move = (e: PointerEvent) => { if (!k.drag) return; const d = -(e.clientX - k.x) * 0.007; k.x = e.clientX; k.angle += d; k.vel = k.vel * 0.5 + d * 0.5; };
+    const up = () => { // flick: a quick swipe jumps up to 3 screens, then snaps
+      if (!k.drag) return; k.drag = false;
+      const proj = k.angle + Math.max(-3 * STEP, Math.min(3 * STEP, k.vel * 14));
+      k.target = Math.round(proj / STEP) * STEP; k.vel = 0;
+    };
+    const key = (e: KeyboardEvent) => { if (e.key === "ArrowRight") nudge(1); else if (e.key === "ArrowLeft") nudge(-1); else if (e.key === "Enter") go(k.idx); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("keydown", key);
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key); };
   }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#05060a", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
       <div style={{ position: "absolute", inset: 0, touchAction: "none", cursor: "grab" }}
+        onWheel={(e) => { // trackpad / mouse wheel: one screen per notch
+          const k = st.current, d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+          k.wheel += d;
+          if (Math.abs(k.wheel) > 50 && performance.now() - k.wt > 300) { nudge(k.wheel > 0 ? 1 : -1); k.wheel = 0; k.wt = performance.now(); }
+        }}
         onPointerDown={(e) => { const k = st.current; k.drag = true; k.vel = 0; k.target = null; k.x = e.clientX; }}>
-        <Canvas dpr={[1, 1.5]} camera={{ position: [0, 1.4, 8], fov: 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -9)}>
+        <Canvas key={q} dpr={hi ? [1, 1.5] : 1} camera={{ position: [0, 1.4, 8], fov: narrow ? 72 : 42 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, -9)}>
           <Stars radius={70} depth={30} count={900} factor={3} fade />
           {MOVIES.map((mv, i) => <Poster key={mv.id} m={mv} i={i} st={st} onPick={pick} />)}
           <Physics st={st} setIdx={setIdx} bar={bar} />
           {FPS && <Stats />}
-          <EffectComposer multisampling={0}><Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.9} /><Vignette offset={0.3} darkness={0.7} /></EffectComposer>
+          {hi && <EffectComposer multisampling={0}><Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.9} /><Vignette offset={0.3} darkness={0.7} /></EffectComposer>}
         </Canvas>
       </div>
 
@@ -131,13 +146,14 @@ export default function PanoramaHero() {
           <b style={{ fontFamily: "Impact, sans-serif", letterSpacing: 1, fontSize: 20 }}><span style={{ background: GOLD, color: "#000", borderRadius: 6, padding: "2px 7px", marginRight: 8 }}>▣</span>CINEVERSE</b>
           {["Movies", "Events", "Plays", "Sports"].map((l) => <span key={l} style={{ fontSize: 13, opacity: 0.8 }}>{l}</span>)}
           <span style={{ flex: 1 }} />
-          <span style={{ ...pill, minWidth: 180, opacity: 0.7 }}>Search movies, theatres…</span>
-          <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/tickets")}>My tickets</span><span style={pill}>Chennai ▾</span>
+          {!narrow && <span style={{ ...pill, minWidth: 180, opacity: 0.7 }}>Search movies, theatres…</span>}
+          <span style={{ ...pill, cursor: "pointer" }} onClick={() => router.push("/tickets")}>My tickets</span>
+          <span style={{ ...pill, cursor: "pointer" }} onClick={() => setQ(hi ? "low" : "high")}>{hi ? "High" : "Low"} quality</span>{!narrow && <span style={pill}>Chennai ▾</span>}
           <span style={{ ...pill, background: GOLD, color: "#000", fontWeight: 700, border: 0 }}>Sign in</span>
         </nav>
         <div style={{ textAlign: "center", marginTop: "2vh" }}>
           <div style={{ fontFamily: "Impact, 'Arial Narrow', sans-serif", fontSize: "clamp(36px,6vw,64px)", letterSpacing: 2 }}>CINE<span style={{ color: GOLD }}>VERSE</span></div>
-          <div style={{ fontSize: 11, letterSpacing: 3, opacity: 0.55 }}>DRAG TO EXPLORE · TAP A SCREEN TO BOOK</div>
+          <div style={{ fontSize: 11, letterSpacing: 3, opacity: 0.55 }}>SWIPE OR DRAG TO BROWSE · TAP A SCREEN TO OPEN</div>
         </div>
         <div style={{ position: "absolute", bottom: "4vh", left: 0, right: 0, display: "flex", justifyContent: "center", alignItems: "center", gap: 14, pointerEvents: "auto" }}>
           <button style={{ ...pill, borderRadius: 99, width: 40, height: 40 }} onClick={() => nudge(-1)}>‹</button>

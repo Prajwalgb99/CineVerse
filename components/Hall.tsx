@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { HALL, Seat } from "../lib/hall";
 import { useStore } from "../lib/store";
+import { useQuality } from "../lib/quality";
+
 import { canvasTex, carpet, fabricBump, noise } from "../lib/textures";
 
 const ROWS: Seat[] = (() => { const m = new Map<string, Seat>(); HALL.forEach((s) => m.has(s.row) || m.set(s.row, s)); return [...m.values()]; })();
@@ -52,7 +54,7 @@ function AisleLights() {
 }
 
 export default function Hall() {
-  const house = useStore((s) => s.house);
+  const house = useStore((s) => s.house), hi = useQuality((s) => s.q === "high");
   const { carpetMap, fabric, wall } = useMemo(() => ({
     carpetMap: canvasTex(256, carpet(), [6, 1]),
     fabric: canvasTex(128, fabricBump(), [3, 3], false),
@@ -107,7 +109,7 @@ export default function Hall() {
       {/* lighting: dim cinema by default, warm house lights on demand */}
       <ambientLight intensity={house ? 0.8 : 0.1} color="#ffe3c2" />
       <primitive object={target} />
-      <spotLight position={[0, 6, 2]} target={target} angle={0.9} penumbra={1} intensity={house ? 0 : 320} color="#9ec9ff" castShadow shadow-mapSize={[512, 512]} />
+      <spotLight position={[0, 6, 2]} target={target} angle={0.9} penumbra={1} intensity={house ? 0 : 320} color="#9ec9ff" castShadow={hi} shadow-mapSize={[512, 512]} />
       {[6, 14, 21].map((zz) => <pointLight key={zz} position={[0, 8, zz]} intensity={house ? 140 : 0} color="#ffd9a0" />)}
       <Environment resolution={128} environmentIntensity={house ? 0.5 : 0.35}>
         <Lightformer form="rect" intensity={2.5} position={[0, 3.6, -2]} scale={[10, 5, 1]} color="#9ec9ff" />

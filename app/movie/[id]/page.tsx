@@ -23,19 +23,22 @@ export default function MoviePage() {
 
   return (
     <main style={{ background: "#07080c", color: "#fff", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
-      <section style={{ position: "relative", height: "100vh", overflow: "hidden", background: `linear-gradient(160deg, ${m.color}, #05060a 70%)` }}>
-        {videoOk && <video key={m.id} src={`/trailers/${m.id}.mp4`} autoPlay muted={muted} loop playsInline onError={() => setVideoOk(false)}
+      <section style={{ position: "relative", height: "100svh", overflow: "hidden", background: `linear-gradient(160deg, ${m.color}, #05060a 70%)` }}>
+        {m.yt ? <iframe key={m.yt + muted} title={m.title} allow="autoplay; encrypted-media"
+          src={`https://www.youtube-nocookie.com/embed/${m.yt}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&loop=1&playlist=${m.yt}&playsinline=1&modestbranding=1&rel=0`}
+          style={{ position: "absolute", top: "50%", left: "50%", width: "max(100vw, 177.78svh)", height: "max(56.25vw, 100svh)", transform: "translate(-50%,-50%)", border: 0, pointerEvents: "none" }} />
+          : videoOk && <video key={m.id} src={`/trailers/${m.id}.mp4`} autoPlay muted={muted} loop playsInline onError={() => setVideoOk(false)}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #05060a 8%, transparent 55%), linear-gradient(to bottom, #05060a99, transparent 25%)" }} />
         <Link href="/" style={{ position: "absolute", top: 20, left: "5vw", color: "#fff", textDecoration: "none", fontFamily: HEAD, letterSpacing: 1, fontSize: 20 }}>← CINEVERSE</Link>
         <div style={{ position: "absolute", left: "5vw", right: "5vw", bottom: "6vh", display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
           {posterOk && <img src={`/posters/${m.id}.jpg`} alt="" onError={() => setPosterOk(false)} style={{ width: 90, height: 135, objectFit: "cover", borderRadius: 8 }} />}
           <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 12, color: "#ff4b55", letterSpacing: 2 }}>{videoOk ? "OFFICIAL TRAILER" : "TRAILER COMING SOON"}</div>
+            <div style={{ fontSize: 12, color: "#ff4b55", letterSpacing: 2 }}>{videoOk || m.yt ? "OFFICIAL TRAILER" : "TRAILER COMING SOON"}</div>
             <div style={{ fontFamily: HEAD, fontSize: "clamp(40px,7vw,84px)", lineHeight: 1 }}>{m.title.toUpperCase()}</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>{m.cert} · {m.lang} · {m.dur} · <span style={{ color: GOLD }}>★ {m.rating}</span> · {m.genre}</div>
           </div>
-          {videoOk && <button onClick={() => setMuted(!muted)} style={pill}>{muted ? "Sound off" : "Sound on"}</button>}
+          {(videoOk || m.yt) && <button onClick={() => setMuted(!muted)} style={pill}>{muted ? "Sound off" : "Sound on"}</button>}
           <button onClick={() => board.current?.scrollIntoView({ behavior: "smooth" })} style={{ ...pill, background: "#ff2b3a", border: 0, fontWeight: 700 }}>Book tickets ↓</button>
         </div>
       </section>
